@@ -48,6 +48,7 @@
     <ItemGroup>
         <Compile Include="BoxManipulate.cs" />
         <Compile Include="CipherBlockChaining.cs" />
+        <Compile Include="MatrixDES.cs" />
         <Compile Include="ElectronicCodebook.cs" />
         <Compile Include="Form1.cs">
             <SubType>Form</SubType>

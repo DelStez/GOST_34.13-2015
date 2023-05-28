@@ -40,55 +40,40 @@ namespace GOST_34._13_2015
         {
             BoxManipulate boxManipulate = new BoxManipulate();
             string mode = comboBox1.SelectedItem.ToString();
-            byte[] keyBytes = Encoding.UTF8.GetBytes(textBox5.Text);
-            ElectronicCodebook codebook = new ElectronicCodebook();
             if (mode == comboBox1.Items[0].ToString())
             {
-                List<byte[]> blockOpenText = boxManipulate.splitText(ContentOpenText.Text);
-                List<byte[]> cipherText = codebook.cipher(blockOpenText, keyBytes);
-                textBox1.Text = "";
-                foreach (byte[] block in cipherText)
-                {
-                    textBox3.Text += Encoding.UTF8.GetString(block);
-                }
+                ElectronicCodebook c = new ElectronicCodebook(ContentOpenText.Text, textBox5.Text, false);
+                string text = ElectronicCodebook.Begin();
+                textBox3.Text = "";
+                textBox3.Text += text;
+
             }
             else
             {
-                List<byte[]> blockCipherText = boxManipulate.splitText(ContentOpenText.Text);
-                List<byte[]> OpenTextByte = codebook.decipher(blockCipherText, keyBytes);
+                ElectronicCodebook c = new ElectronicCodebook(ContentOpenText.Text, textBox5.Text, true);
+                string text = ElectronicCodebook.Begin();
                 textBox3.Text = "";
-                foreach (byte[] block in OpenTextByte)
-                {
-                    textBox3.Text += Encoding.UTF8.GetString(block);
-                }
+                textBox3.Text += text;
             }
         }
 
         private void button3_Click(object sender, EventArgs e)
         {
             BoxManipulate boxManipulate = new BoxManipulate();
-            string mode = comboBox1.SelectedItem.ToString();
-            byte[] keyBytes = Encoding.UTF8.GetBytes(textBox1.Text);
             CipherBlockChaining cipherBlockChaining = new CipherBlockChaining();
+            string mode = comboBox1.SelectedItem.ToString();
+            byte[] keyBytes = cipherBlockChaining.CorrectKey(textBox1.Text, 16);
             if (mode == comboBox1.Items[0].ToString())
             {
-                List<byte[]> blockOpenText = boxManipulate.splitText(ContentOpenText.Text);
-                List<byte[]> cipherText = cipherBlockChaining.cipher(blockOpenText, keyBytes);
+                byte[] cipherText = cipherBlockChaining.EncryptStringToBytes_Aes(ContentOpenText.Text, keyBytes);
                 textBox2.Text = "";
-                foreach (byte[] block in cipherText)
-                {
-                    textBox2.Text += Encoding.UTF8.GetString(block);
-                }
+                textBox2.Text += Encoding.UTF8.GetString(cipherText);
             }
             else
             {
-                List<byte[]> blockCipherText = boxManipulate.splitText(ContentOpenText.Text);
-                List<byte[]> OpenTextByte = cipherBlockChaining.cipher(blockCipherText, keyBytes);
+                string cipherText = cipherBlockChaining.DecryptStringFromBytes_Aes(Encoding.UTF8.GetBytes(ContentOpenText.Text), keyBytes);
                 textBox2.Text = "";
-                foreach (byte[] block in OpenTextByte)
-                {
-                    textBox2.Text += Encoding.UTF8.GetString(block);
-                }
+                textBox2.Text += cipherText;
             }
         }
     }

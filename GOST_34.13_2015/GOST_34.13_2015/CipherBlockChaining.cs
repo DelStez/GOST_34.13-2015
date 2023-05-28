@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -6,55 +8,96 @@ namespace GOST_34._13_2015
 {
     public class CipherBlockChaining
     {
-        public List<byte[]> cipher(List<byte[]> blocks, byte[] key)
+        public byte[] CorrectKey(string key, int lengthKey)
         {
-            
-            List<byte[]> encryptedBlocks = new List<byte[]>();
-            // Создаем экземпляр класса AesManaged
-            AesManaged aesAlg = new AesManaged();
-
-            // Устанавливаем ключ шифрования
-            aesAlg.Key = key;
-
-            // Устанавливаем режим шифрования (CTR)
-            aesAlg.Mode = CipherMode.CBC;
-
-            // Устанавливаем счетчик (nonce) и значение счетчика (counter)
-            byte[] nonce = new byte[8]; // 64-битное случайное значение
-            byte[] counter = new byte[8]; // начальное значение счетчика (например, 0)
-            ICryptoTransform encryptor = aesAlg.CreateEncryptor(key, nonce);
-
-            // Шифруем каждый блок открытого текста
-            foreach (byte[] block in blocks)
+            byte[] bkey = Encoding.Default.GetBytes(key);
+            byte[] output = new byte[lengthKey];
+            if (bkey.Length > lengthKey)
+                for (int i = 0; i < lengthKey; i++)
+                    output[i] = bkey[i];
+            else
             {
-                // Получаем значение счетчика для текущего блока
-                byte[] counterBlock = new byte[16];
-                counter.CopyTo(counterBlock, 0);
-                nonce.CopyTo(counterBlock, 8);
+                while (key.Length % lengthKey != 0)
+                    key += "\0";
+                bkey = Encoding.Default.GetBytes(key);
+                for (int i = 0; i < lengthKey; i++)
+                    output[i] = bkey[i];
+                Encoding.Default.GetBytes(key).CopyTo(output, 0);
+            }
+            return output;
+        }
+        public byte[] EncryptStringToBytes_Aes(string plainText, byte[] Key)
+        {
+            byte[] encrypted;
+            byte[] IV;
 
-                // Шифруем текущий блок
-                byte[] encryptedBlock = new byte[block.Length];
-                encryptor.TransformBlock(counterBlock, 0, 16, encryptedBlock, 0);
-                for (int i = 0; i < block.Length; i++)
+            using (Aes aesAlg = Aes.Create())
+            {
+                aesAlg.Key = Key;
+
+                aesAlg.GenerateIV();
+                IV = aesAlg.IV;
+
+                aesAlg.Mode = CipherMode.CBC;
+
+                var encryptor = aesAlg.CreateEncryptor(aesAlg.Key, aesAlg.IV);
+
+                using (var msEncrypt = new MemoryStream())
                 {
-                    encryptedBlock[i] ^= block[i];
-                }
-
-                // Добавляем зашифрованный блок в список
-                encryptedBlocks.Add(encryptedBlock);
-
-                // Увеличиваем значение счетчика на единицу
-                for (int i = counter.Length - 1; i >= 0; i--)
-                {
-                    counter[i]++;
-                    if (counter[i] != 0) // если не произошло переполнение, выходим из цикла
+                    using (var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
                     {
-                        break;
+                        using (var swEncrypt = new StreamWriter(csEncrypt))
+                        {
+                            swEncrypt.Write(plainText);
+                        }
+                        encrypted = msEncrypt.ToArray();
                     }
                 }
             }
 
-            return encryptedBlocks;
+            var combinedIvCt = new byte[IV.Length + encrypted.Length];
+            Array.Copy(IV, 0, combinedIvCt, 0, IV.Length);
+            Array.Copy(encrypted, 0, combinedIvCt, IV.Length, encrypted.Length);
+            return combinedIvCt;
+
         }
+
+        public string DecryptStringFromBytes_Aes(byte[] cipherTextCombined, byte[] Key)
+        {
+            string plaintext = null;
+
+            using (Aes aesAlg = Aes.Create())
+            {
+                aesAlg.Key = Key;
+
+                byte[] IV = new byte[aesAlg.BlockSize/8];
+                byte[] cipherText = new byte[cipherTextCombined.Length - IV.Length];
+                
+                Array.Copy(cipherTextCombined, IV, IV.Length);
+                Array.Copy(cipherTextCombined, IV.Length, cipherText, 0, cipherText.Length);
+
+                aesAlg.IV = IV;
+
+                aesAlg.Mode = CipherMode.CBC;
+
+                ICryptoTransform decryptor = aesAlg.CreateDecryptor(aesAlg.Key, aesAlg.IV);
+
+                using (var msDecrypt = new MemoryStream(cipherText))
+                {
+                    using (var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read))
+                    {
+                        using (var srDecrypt = new StreamReader(csDecrypt))
+                        {
+                            plaintext = srDecrypt.ReadToEnd();
+                        }
+                    }
+                }
+
+            }
+
+            return plaintext;
+
+        }
+        
     }
 }
